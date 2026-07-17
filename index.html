@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0f1e3d" />
+<title>바당 · 제주 물때 · 날씨</title>
+<!-- 파비콘 (바당) -->
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="apple-touch-icon" href="favicon.png" />
+<!-- Open Graph (카카오·페북 등 공유 미리보기) -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="바당 · 물때 기반 해양 액티비티" />
+<meta property="og:description" content="물때를 알면, 완벽한 바다가 시작됩니다" />
+<meta property="og:image" content="og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="바당 · 물때 기반 해양 액티비티" />
+<meta name="twitter:description" content="물때를 알면, 완벽한 바다가 시작됩니다" />
+<meta name="twitter:image" content="og-image.png" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --bg:#0f1720; --panel:#18232f; --panel2:#1f2e3d; --line:#2a3b4d;
+    --text:#eef4f8; --sub:#9fb3c4;
+    --accent:#2E6FF2; --accent-dk:#2558c8; --accent-lt:#8fb4ff;
+    --danger:#ef4444; --danger-lt:#fca5a5; --ok:#34d399; --warn:#f59e0b;
+    --shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  svg text{font-family:'Pretendard',sans-serif}
+  body{
+    font-family:'Pretendard', sans-serif;
+    background:var(--bg); color:var(--text); line-height:1.5;
+    display:flex; justify-content:center; -webkit-text-size-adjust:100%;
+  }
+  #app{width:100%; max-width:520px; min-height:100vh; background:var(--bg); padding-bottom:30px}
+  .ic{width:20px; height:20px; display:inline-block; vertical-align:middle; flex:0 0 auto}
+
+  header{position:sticky; top:0; z-index:40; background:var(--panel); border-bottom:1px solid var(--line); padding:12px 16px}
+  .htop{display:flex; align-items:center; gap:8px; margin-bottom:12px}
+  .htop .logo{color:var(--accent); display:flex}
+  .htop .logo .ic{width:24px; height:24px}
+  .htop h1{font-size:19px; margin:0; font-weight:800; letter-spacing:-.4px}
+  .htop .brandsub{font-size:11.5px; color:var(--sub); font-weight:600; padding-left:8px; margin-left:8px; border-left:1px solid var(--line)}
+  .htop .today{margin-left:auto; font-size:12px; color:var(--sub)}
+  .controls{display:flex; gap:8px; align-items:center; margin-bottom:8px}
+  .controls select{
+    flex:1; padding:11px 12px; border-radius:12px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--text); font-size:14px; font-weight:600; outline:none; font-family:inherit;
+  }
+  .locbtn{
+    display:flex; align-items:center; gap:5px; padding:11px 12px; border-radius:12px;
+    border:1px solid var(--accent); background:rgba(46,111,242,.12); color:var(--accent-lt);
+    font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; font-family:inherit;
+  }
+  .locbtn:active{background:rgba(46,111,242,.22)}
+  .locbtn .ic{width:17px; height:17px}
+  .datebar{display:flex; align-items:center; justify-content:center; gap:6px}
+  .datebar button{background:var(--panel2); border:1px solid var(--line); color:var(--accent-lt); width:38px; height:36px; cursor:pointer; border-radius:10px; display:flex; align-items:center; justify-content:center}
+  .datebar .datelbl{font-size:13.5px; color:var(--text); min-width:150px; text-align:center; font-weight:600; cursor:pointer; padding:6px 8px; border-radius:8px}
+  .datebar .datelbl:active{background:var(--panel2)}
+
+  main{padding:14px}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px}
+  @media(max-width:440px){ .grid2{grid-template-columns:1fr} }
+
+  .tnow{border-radius:18px; padding:18px; text-align:center; border:1.5px solid transparent; display:flex; flex-direction:column; justify-content:center}
+  .tnow.good{background:rgba(46,111,242,.12); border-color:var(--accent)}
+  .tnow.bad{background:rgba(239,68,68,.12); border-color:var(--danger)}
+  .tnow-badge{font-size:13px; font-weight:800; letter-spacing:1.5px; display:inline-block; padding:4px 14px; border-radius:20px; margin:0 auto 8px}
+  .tnow.good .tnow-badge{background:var(--accent); color:#fff}
+  .tnow.bad .tnow-badge{background:var(--danger); color:#fff}
+  .tnow-val{font-size:40px; font-weight:800; line-height:1}
+  .tnow-val span{font-size:15px; color:var(--sub); font-weight:600}
+  .tnow.good .tnow-val{color:var(--accent-lt)}
+  .tnow.bad .tnow-val{color:var(--danger-lt)}
+  .tnow-sub{font-size:12px; color:var(--sub); margin-top:6px}
+  .tnow-sub b{color:var(--text)}
+  .tnow-msg{font-size:12.5px; margin-top:8px; font-weight:700}
+  .tnow.good .tnow-msg{color:var(--accent-lt)}
+  .tnow.bad .tnow-msg{color:var(--danger-lt)}
+
+  .wx{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:16px; box-shadow:var(--shadow)}
+  .wx .wxhead{display:flex; align-items:center; gap:10px}
+  .wx .wxicon{color:var(--accent-lt)}
+  .wx .wxicon .ic{width:38px; height:38px}
+  .wx .wxtemp{font-size:30px; font-weight:800}
+  .wx .wxtemp span{font-size:14px; color:var(--sub); font-weight:600}
+  .wx .wxcond{font-size:13px; color:var(--sub)}
+  .wx .wxrows{margin-top:10px; font-size:12.5px; color:var(--sub); display:flex; flex-wrap:wrap; gap:4px 14px}
+  .wx .wxrows b{color:var(--text); font-weight:600}
+  .wx .wxfore{display:flex; gap:8px; margin-top:12px}
+  .wx .wxday{flex:1; text-align:center; background:var(--panel2); border-radius:10px; padding:8px 4px}
+  .wx .wxday .d{font-size:11px; color:var(--sub)}
+  .wx .wxday .e{margin:3px 0; color:var(--accent-lt); display:flex; justify-content:center}
+  .wx .wxday .e .ic{width:22px; height:22px}
+  .wx .wxday .t{font-size:11.5px}
+  .wx .wxday .t .mx{color:var(--danger-lt)} .wx .wxday .t .mn{color:#93c5fd}
+  .wxerr{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--sub)}
+  .wxerr .ic{color:var(--warn)}
+
+  .chips{display:flex; gap:10px; margin-bottom:14px}
+  .chip{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px 12px; display:flex; align-items:center; gap:8px}
+  .chip .ci{width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; background:var(--panel2); color:var(--accent-lt); flex:0 0 auto}
+  .chip .ci .ic{width:19px; height:19px}
+  .chip .cl{font-size:11px; color:var(--sub)}
+  .chip .cv{font-size:14px; font-weight:700}
+
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:12px 14px; margin-bottom:14px; box-shadow:var(--shadow)}
+  .card h3{margin:0 0 10px; font-size:13.5px; color:var(--sub); font-weight:700; display:flex; align-items:center; gap:6px}
+  .tchart svg{width:100%; height:auto; display:block}
+  #tideChart{touch-action:none; cursor:ew-resize; user-select:none; -webkit-user-select:none}
+  .chart-readout{display:flex; align-items:center; justify-content:center; gap:9px; margin:2px 0 8px; min-height:30px}
+  .chart-readout .rt{font-size:12.5px; color:var(--sub)}
+  .chart-readout .rv{font-size:23px; font-weight:800; line-height:1}
+  .chart-readout .rv i{font-size:12px; color:var(--sub); font-style:normal; margin-left:1px; font-weight:600}
+  .chart-readout .rv.g,.chart-readout .rb.g{color:var(--accent-lt)}
+  .chart-readout .rv.b,.chart-readout .rb.b{color:var(--danger-lt)}
+  .chart-readout .rb{font-size:11px; font-weight:800; padding:2px 9px; border-radius:11px}
+  .chart-readout .rb.g{background:rgba(46,111,242,.16)}
+  .chart-readout .rb.b{background:rgba(239,68,68,.16)}
+  .chart-hint{font-size:11px; color:var(--sub); text-align:center; margin-top:5px}
+  .tlegend{display:flex; gap:16px; justify-content:center; font-size:11.5px; color:var(--sub); padding:6px 0 0}
+  .tlegend b{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:middle}
+  .rowi{display:flex; align-items:center; gap:8px; font-size:13.5px; padding:6px 0; border-bottom:1px dashed var(--line)}
+  .rowi:last-child{border-bottom:none}
+  .rowi .tv{margin-left:auto; font-weight:600}
+  .pill{font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px}
+  .pill.hi{background:rgba(46,111,242,.16); color:var(--accent-lt)}
+  .pill.lo{background:rgba(245,158,11,.16); color:var(--warn)}
+  .good-win{color:var(--accent-lt); font-weight:600; font-size:13.5px; padding:5px 0; display:flex; align-items:center; gap:7px}
+  .good-win .ic{width:17px; height:17px; color:var(--accent)}
+  .nowin{color:var(--sub); font-size:13px}
+  #map{width:100%; height:340px; border-radius:14px; overflow:hidden; background:#0b1119}
+  .leaflet-container{background:#0b1119; font-family:'Pretendard',sans-serif}
+  .maperr{padding:30px; text-align:center; color:var(--sub); font-size:13px}
+  footer{text-align:center; font-size:11px; color:var(--sub); padding:14px; line-height:1.7}
+  footer b{color:var(--warn)}
+  .src{font-size:11px; color:var(--sub); margin-top:4px; display:flex; align-items:center; justify-content:center; gap:5px}
+  .src .dot{width:7px; height:7px; border-radius:50%; background:var(--ok)}
+  .src .dot.pred{background:var(--warn)}
+  .lpop{font-size:12.5px; line-height:1.6}
+  .lpop b{font-size:13px}
+
+  /* 액티비티 추천 */
+  .acts{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  @media(max-width:360px){ .acts{grid-template-columns:1fr} }
+  .act{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px 12px}
+  .act.l2{border-color:rgba(239,68,68,.45)}
+  .act .ah{display:flex; align-items:center; gap:7px; margin-bottom:5px}
+  .act .ah .ai{display:flex; color:var(--accent-lt); flex:0 0 auto}
+  .act .ah .ai .ic{width:19px; height:19px}
+  .act.l1 .ah .ai{color:var(--warn)}
+  .act.l2 .ah .ai{color:var(--danger-lt)}
+  .act .ah .nm{font-size:13px; font-weight:700}
+  .act .ab{margin-left:auto; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:10px; white-space:nowrap}
+  .ab.l0{background:rgba(52,211,153,.16); color:var(--ok)}
+  .ab.l1{background:rgba(245,158,11,.16); color:var(--warn)}
+  .ab.l2{background:rgba(239,68,68,.16); color:var(--danger-lt)}
+  .act .ar{font-size:11.5px; color:var(--sub); line-height:1.45}
+  .act-note{margin-left:auto; font-size:11px; color:var(--warn); font-weight:600; display:inline-flex; align-items:center; gap:4px}
+  .act-note .ic{width:14px; height:14px}
+
+  /* 수영 스팟 */
+  .spots{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .spot{display:flex; align-items:center; gap:7px; background:var(--panel2); border:1px solid var(--line); border-radius:11px; padding:9px 11px; cursor:pointer; font-size:12.5px; font-weight:600}
+  .spot:active{background:rgba(46,111,242,.12)}
+  .spot .sdot{width:9px; height:9px; border-radius:50%; flex:0 0 auto}
+  .spot .stp{margin-left:auto; font-size:10px; color:var(--sub); font-weight:600; white-space:nowrap}
+  .spot-legend{display:flex; gap:14px; justify-content:center; font-size:11px; color:var(--sub); margin-top:9px}
+  .spot-legend b{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:middle}
+
+  /* 안전수칙 */
+  .safetybtn{margin-left:8px; background:rgba(245,158,11,.14); border:1px solid var(--warn); color:var(--warn); width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto}
+  .safetybtn .ic{width:19px; height:19px}
+  @media(max-width:400px){ .htop .brandsub{display:none} }
+  .overlay{position:fixed; inset:0; background:rgba(3,8,13,.72); z-index:100; display:flex; align-items:flex-end; justify-content:center; backdrop-filter:blur(3px)}
+  .overlay.hidden{display:none}
+  .sheet{width:100%; max-width:520px; background:var(--panel); border-radius:20px 20px 0 0; border-top:1px solid var(--line); max-height:90vh; display:flex; flex-direction:column; box-shadow:var(--shadow)}
+  .sheet-head{padding:18px 18px 12px; display:flex; align-items:center; gap:11px; border-bottom:1px solid var(--line)}
+  .sheet-head .hi{width:40px; height:40px; border-radius:11px; background:rgba(245,158,11,.15); color:var(--warn); display:flex; align-items:center; justify-content:center; flex:0 0 auto}
+  .sheet-head .hi .ic{width:22px; height:22px}
+  .sheet-head h2{margin:0; font-size:17px; font-weight:800}
+  .sheet-head p{margin:2px 0 0; font-size:12px; color:var(--sub)}
+  .sheet-body{padding:4px 18px 8px; overflow-y:auto}
+  .safe-sec{padding:13px 0; border-bottom:1px dashed var(--line)}
+  .safe-sec:last-child{border-bottom:none}
+  .safe-sec h3{margin:0 0 8px; font-size:13.5px; font-weight:800; color:var(--accent-lt)}
+  .safe-sec ul{margin:0; padding-left:17px}
+  .safe-sec li{font-size:13px; line-height:1.7; color:#d7e2f0; margin-bottom:3px}
+  .safe-sec li b{color:#fff}
+  .safe-emg{background:rgba(239,68,68,.12); border:1px solid var(--danger); border-radius:12px; padding:12px 14px; margin:12px 0 2px; font-size:13px; line-height:1.6; color:#f2d0d0; display:flex; gap:9px; align-items:flex-start}
+  .safe-emg .ic{width:20px; height:20px; color:var(--danger); flex:0 0 auto; margin-top:1px}
+  .safe-emg b{color:#fca5a5; font-size:15px}
+  .sheet-foot{padding:12px 18px calc(16px + env(safe-area-inset-bottom)); border-top:1px solid var(--line)}
+  .sheet-foot .btn{width:100%; padding:14px; border:none; border-radius:12px; font-size:15px; font-weight:700; background:var(--accent); color:#fff; cursor:pointer; font-family:inherit}
+  .safe-note{font-size:11px; color:var(--sub); text-align:center; margin-top:9px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="htop">
+      <span class="logo"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8c2-2.2 4-2.2 6 0s4 2.2 6 0 4-2.2 6 0M2 14c2-2.2 4-2.2 6 0s4 2.2 6 0 4-2.2 6 0"/></svg></span>
+      <h1>바당</h1>
+      <span class="brandsub">제주 물때·날씨</span>
+      <span class="today" id="todayLbl"></span>
+      <button id="safetyBtn" class="safetybtn" title="안전 수칙" aria-label="안전 수칙"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 2.7 17a1.9 1.9 0 0 0 1.7 2.9h15.2a1.9 1.9 0 0 0 1.7-2.9L13.7 3.9a1.9 1.9 0 0 0-3.4 0Z"/></svg></button>
+    </div>
+    <div class="controls">
+      <select id="stationSel"></select>
+      <button id="locBtn" class="locbtn" title="내 위치로 가장 가까운 관측소 찾기">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.2-6-10.5A6 6 0 0 1 18 10.5C18 15.8 12 21 12 21Z"/><circle cx="12" cy="10.5" r="2.3"/></svg>
+        내 위치
+      </button>
+    </div>
+    <div class="datebar">
+      <button id="datePrev" aria-label="이전 날"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <span class="datelbl" id="dateLbl" title="눌러서 오늘로">—</span>
+      <button id="dateNext" aria-label="다음 날"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid2">
+      <div id="tideNow"></div>
+      <div class="wx" id="wxCard"><div class="wxcond">날씨 불러오는 중…</div></div>
+    </div>
+
+    <div class="chips">
+      <div class="chip"><div class="ci" id="flowIc"></div><div><div class="cl">물흐름</div><div class="cv" id="flowVal">—</div></div></div>
+      <div class="chip"><div class="ci" id="nextIc"></div><div><div class="cl" id="nextLbl">다음</div><div class="cv" id="nextVal">—</div></div></div>
+    </div>
+
+    <div class="card"><h3>지금 액티비티 추천 <span class="act-note" id="actNote"></span></h3><div class="acts" id="actGrid"></div></div>
+
+    <div class="card tchart">
+      <h3>조석 그래프 (수심 150cm 기준)</h3>
+      <div id="chartReadout" class="chart-readout"></div>
+      <div id="tideChart"></div>
+      <div class="chart-hint">그래프를 좌우로 움직여 시간별 수심을 확인하세요 · 두 번 누르면 현재로</div>
+      <div class="tlegend">
+        <span><b style="background:#2E6FF2"></b>GOOD · 150cm 이상</span>
+        <span><b style="background:#ef4444"></b>BAD · 150cm 미만</span>
+      </div>
+    </div>
+
+    <div class="card"><h3 id="extHead">만조 / 간조</h3><div id="tideExt"></div></div>
+    <div class="card"><h3>GOOD 시간대 (수심 150cm 이상)</h3><div id="tideWin"></div></div>
+
+    <div class="card"><h3>포구 수영 · 스노쿨링 스팟</h3>
+      <div class="spots" id="spotList"></div>
+      <div class="spot-legend"><span><b style="background:#2E6FF2"></b>포구·천연풀</span><span><b style="background:#8fb4ff"></b>해수욕장</span></div>
+    </div>
+
+    <div class="card"><h3>제주 지도 · 관측소 핀 & 수영 스팟</h3><div id="map"></div></div>
+
+    <footer>
+      <div class="src" id="srcLbl"></div>
+      출처: 바다타임 / 국립해양조사원 · 날씨·파고·수온 Open-Meteo<br>
+      ※ 물때는 <b>예보값(참고용)</b>이며 현재 수심은 조석 곡선으로 계산한 값입니다.
+    </footer>
+  </main>
+
+  <!-- 안전 수칙 경고창 -->
+  <div class="overlay hidden" id="safetyModal">
+    <div class="sheet">
+      <div class="sheet-head">
+        <span class="hi"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 2.7 17a1.9 1.9 0 0 0 1.7 2.9h15.2a1.9 1.9 0 0 0 1.7-2.9L13.7 3.9a1.9 1.9 0 0 0-3.4 0Z"/></svg></span>
+        <div><h2>해양 액티비티 안전 수칙</h2><p>다이빙 · 스노쿨링 · 서핑 전 꼭 확인하세요</p></div>
+      </div>
+      <div class="sheet-body">
+        <div class="safe-sec">
+          <h3>공통 (모든 해양활동)</h3>
+          <ul>
+            <li><b>기상·물때 먼저 확인</b> — 풍랑·강풍 특보 시 입수 금지. 파도·바람·조류가 센 날은 피하세요.</li>
+            <li><b>이안류(역파도) 주의</b> — 먼바다로 끌려가면 맞서지 말고 <b>해안과 나란히</b> 헤엄쳐 빠져나오세요.</li>
+            <li><b>물때·조류</b> — 만조 때 갯바위 고립, <b>사리(대조기)</b>엔 조류가 특히 강해요. 들물·날물 시각을 확인하세요.</li>
+            <li><b>혼자 하지 않기</b> — 반드시 2인 이상, 버디와 함께. 구명조끼·부이 착용.</li>
+            <li><b>음주 후 입수 금지</b>, 준비운동 필수, 컨디션 난조 시 즉시 중단.</li>
+            <li>입수 전 <b>수심·지형·안전요원 위치</b> 확인. 수영 실력·체력 과신 금지.</li>
+          </ul>
+        </div>
+        <div class="safe-sec">
+          <h3>스쿠버 · 프리다이빙</h3>
+          <ul>
+            <li>교육·자격증 이수, <b>장비 사전 점검</b>(공기량·호흡기·BCD).</li>
+            <li><b>감압병 예방</b> — 천천히 상승, 안전정지, <b>다이빙 후 18~24시간 비행 금지</b>.</li>
+            <li>하강 시 <b>이퀄라이징</b>(귀 압력 평형) 잊지 마세요.</li>
+            <li>프리다이빙은 <b>절대 혼자 금지</b> — 블랙아웃(수중 실신) 위험. 과호흡 금지.</li>
+          </ul>
+        </div>
+        <div class="safe-sec">
+          <h3>스노쿨링</h3>
+          <ul>
+            <li>구명조끼·부이 착용, <b>지정 구역</b>에서만.</li>
+            <li>조류에 밀려 <b>먼바다로 이동하지 않도록</b> 수시로 위치 확인.</li>
+          </ul>
+        </div>
+        <div class="safe-sec">
+          <h3>서핑</h3>
+          <ul>
+            <li><b>리쉬(발목 줄)</b> 착용, 넘어질 때 보드에 머리 안 맞게 <b>머리 보호</b>.</li>
+            <li>다른 서퍼·수영객과 거리 유지, 이안류 위치 파악.</li>
+          </ul>
+        </div>
+        <div class="safe-emg">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h2l2 5-2 1a11 11 0 0 0 5 5l1-2 5 2v2a2 2 0 0 1-2 2A16 16 0 0 1 4 5Z"/></svg>
+          <div>위급 상황 시 즉시 <b>119</b> (해양사고 신고) — 위치와 상황을 침착하게 전달하세요.</div>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <button class="btn" id="safetyOk">확인했습니다</button>
+        <div class="safe-note">본 정보는 일반 안전 참고용입니다. 각 활동의 공식 교육·안전지침을 따르세요.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ================= 내장 물때 데이터 (바다타임/국립해양조사원, 2026-07-15 기준 15일치) ================= */
+const TIDE_DATA = {"updated":"2026-07-15T07:26:24.940Z","source":"badatime.com / 국립해양조사원","stations":{"66":{"name":"추자도","days":{"2026-07-15":{"exts":[{"h":6.05,"v":97,"hi":false},{"h":11.317,"v":270,"hi":true},{"h":17.817,"v":6,"hi":false}],"mul":"9 물"},"2026-07-16":{"exts":[{"h":0.417,"v":355,"hi":true},{"h":6.767,"v":90,"hi":false},{"h":12.133,"v":276,"hi":true},{"h":18.6,"v":12,"hi":false}],"mul":"10 물"},"2026-07-17":{"exts":[{"h":1.133,"v":347,"hi":true},{"h":7.483,"v":88,"hi":false},{"h":12.95,"v":276,"hi":true},{"h":19.367,"v":31,"hi":false}],"mul":"11 물"},"2026-07-18":{"exts":[{"h":1.817,"v":331,"hi":true},{"h":8.183,"v":91,"hi":false},{"h":13.817,"v":271,"hi":true},{"h":20.133,"v":61,"hi":false}],"mul":"12 물"},"2026-07-19":{"exts":[{"h":2.467,"v":311,"hi":true},{"h":8.9,"v":98,"hi":false},{"h":14.783,"v":263,"hi":true},{"h":20.9,"v":98,"hi":false}],"mul":"13 물"},"2026-07-20":{"exts":[{"h":3.083,"v":287,"hi":true},{"h":9.633,"v":107,"hi":false},{"h":15.933,"v":255,"hi":true},{"h":21.75,"v":135,"hi":false}],"mul":"14 물"},"2026-07-21":{"exts":[{"h":3.667,"v":264,"hi":true},{"h":10.417,"v":116,"hi":false},{"h":17.3,"v":250,"hi":true},{"h":22.733,"v":167,"hi":false}],"mul":"조금"},"2026-07-22":{"exts":[{"h":4.3,"v":243,"hi":true},{"h":11.267,"v":124,"hi":false},{"h":18.7,"v":251,"hi":true}],"mul":"1 물"},"2026-07-23":{"exts":[{"h":0.1,"v":188,"hi":false},{"h":5.117,"v":225,"hi":true},{"h":12.25,"v":129,"hi":false},{"h":19.983,"v":257,"hi":true}],"mul":"2 물"},"2026-07-24":{"exts":[{"h":1.933,"v":193,"hi":false},{"h":6.417,"v":214,"hi":true},{"h":13.317,"v":129,"hi":false},{"h":21.017,"v":266,"hi":true}],"mul":"3 물"},"2026-07-25":{"exts":[{"h":3.383,"v":183,"hi":false},{"h":7.767,"v":211,"hi":true},{"h":14.35,"v":122,"hi":false},{"h":21.8,"v":277,"hi":true}],"mul":"4 물"},"2026-07-26":{"exts":[{"h":4.167,"v":169,"hi":false},{"h":8.817,"v":216,"hi":true},{"h":15.233,"v":110,"hi":false},{"h":22.383,"v":287,"hi":true}],"mul":"5 물"},"2026-07-27":{"exts":[{"h":4.717,"v":155,"hi":false},{"h":9.6,"v":225,"hi":true},{"h":15.967,"v":95,"hi":false},{"h":22.9,"v":298,"hi":true}],"mul":"6 물"},"2026-07-28":{"exts":[{"h":5.217,"v":142,"hi":false},{"h":10.233,"v":236,"hi":true},{"h":16.6,"v":80,"hi":false},{"h":23.367,"v":307,"hi":true}],"mul":"7 물"},"2026-07-29":{"exts":[{"h":5.667,"v":131,"hi":false},{"h":10.8,"v":247,"hi":true},{"h":17.2,"v":66,"hi":false},{"h":23.817,"v":314,"hi":true}],"mul":"8 물"}}},"67":{"name":"제주","days":{"2026-07-15":{"exts":[{"h":5.783,"v":105,"hi":false},{"h":10.883,"v":242,"hi":true},{"h":17.517,"v":23,"hi":false}],"mul":"9 물"},"2026-07-16":{"exts":[{"h":0.017,"v":309,"hi":true},{"h":6.5,"v":100,"hi":false},{"h":11.683,"v":247,"hi":true},{"h":18.317,"v":30,"hi":false}],"mul":"10 물"},"2026-07-17":{"exts":[{"h":0.683,"v":303,"hi":true},{"h":7.217,"v":100,"hi":false},{"h":12.483,"v":247,"hi":true},{"h":19.083,"v":48,"hi":false}],"mul":"11 물"},"2026-07-18":{"exts":[{"h":1.35,"v":289,"hi":true},{"h":7.933,"v":102,"hi":false},{"h":13.317,"v":240,"hi":true},{"h":19.85,"v":74,"hi":false}],"mul":"12 물"},"2026-07-19":{"exts":[{"h":1.967,"v":271,"hi":true},{"h":8.667,"v":108,"hi":false},{"h":14.217,"v":230,"hi":true},{"h":20.633,"v":104,"hi":false}],"mul":"13 물"},"2026-07-20":{"exts":[{"h":2.55,"v":250,"hi":true},{"h":9.417,"v":114,"hi":false},{"h":15.317,"v":219,"hi":true},{"h":21.467,"v":135,"hi":false}],"mul":"14 물"},"2026-07-21":{"exts":[{"h":3.083,"v":230,"hi":true},{"h":10.217,"v":119,"hi":false},{"h":16.917,"v":212,"hi":true},{"h":22.483,"v":160,"hi":false}],"mul":"조금"},"2026-07-22":{"exts":[{"h":3.633,"v":212,"hi":true},{"h":11.1,"v":123,"hi":false},{"h":18.65,"v":214,"hi":true},{"h":23.883,"v":175,"hi":false}],"mul":"1 물"},"2026-07-23":{"exts":[{"h":4.35,"v":198,"hi":true},{"h":12.067,"v":124,"hi":false},{"h":19.933,"v":221,"hi":true}],"mul":"2 물"},"2026-07-24":{"exts":[{"h":1.8,"v":178,"hi":false},{"h":5.733,"v":189,"hi":true},{"h":13.083,"v":122,"hi":false},{"h":20.833,"v":230,"hi":true}],"mul":"3 물"},"2026-07-25":{"exts":[{"h":3.2,"v":170,"hi":false},{"h":7.2,"v":187,"hi":true},{"h":14.05,"v":116,"hi":false},{"h":21.483,"v":239,"hi":true}],"mul":"4 물"},"2026-07-26":{"exts":[{"h":3.917,"v":160,"hi":false},{"h":8.25,"v":192,"hi":true},{"h":14.883,"v":107,"hi":false},{"h":22.033,"v":248,"hi":true}],"mul":"5 물"},"2026-07-27":{"exts":[{"h":4.45,"v":150,"hi":false},{"h":9.067,"v":200,"hi":true},{"h":15.633,"v":96,"hi":false},{"h":22.517,"v":258,"hi":true}],"mul":"6 물"},"2026-07-28":{"exts":[{"h":4.917,"v":141,"hi":false},{"h":9.717,"v":210,"hi":true},{"h":16.283,"v":85,"hi":false},{"h":23,"v":267,"hi":true}],"mul":"7 물"},"2026-07-29":{"exts":[{"h":5.383,"v":134,"hi":false},{"h":10.317,"v":220,"hi":true},{"h":16.883,"v":75,"hi":false},{"h":23.433,"v":274,"hi":true}],"mul":"8 물"}}},"71":{"name":"성산포","days":{"2026-07-15":{"exts":[{"h":4.683,"v":86,"hi":false},{"h":9.95,"v":215,"hi":true},{"h":16.383,"v":1,"hi":false},{"h":23.067,"v":274,"hi":true}],"mul":"9 물"},"2026-07-16":{"exts":[{"h":5.4,"v":81,"hi":false},{"h":10.75,"v":219,"hi":true},{"h":17.15,"v":8,"hi":false},{"h":23.733,"v":267,"hi":true}],"mul":"10 물"},"2026-07-17":{"exts":[{"h":6.067,"v":81,"hi":false},{"h":11.517,"v":218,"hi":true},{"h":17.883,"v":25,"hi":false}],"mul":"11 물"},"2026-07-18":{"exts":[{"h":0.35,"v":253,"hi":true},{"h":6.733,"v":83,"hi":false},{"h":12.283,"v":210,"hi":true},{"h":18.583,"v":50,"hi":false}],"mul":"12 물"},"2026-07-19":{"exts":[{"h":0.917,"v":236,"hi":true},{"h":7.383,"v":87,"hi":false},{"h":13.067,"v":199,"hi":true},{"h":19.25,"v":79,"hi":false}],"mul":"13 물"},"2026-07-20":{"exts":[{"h":1.433,"v":217,"hi":true},{"h":8.033,"v":92,"hi":false},{"h":13.95,"v":186,"hi":true},{"h":19.917,"v":107,"hi":false}],"mul":"14 물"},"2026-07-21":{"exts":[{"h":1.9,"v":200,"hi":true},{"h":8.733,"v":96,"hi":false},{"h":15.033,"v":176,"hi":true},{"h":20.717,"v":132,"hi":false}],"mul":"조금"},"2026-07-22":{"exts":[{"h":2.35,"v":185,"hi":true},{"h":9.55,"v":100,"hi":false},{"h":16.65,"v":172,"hi":true},{"h":22.033,"v":149,"hi":false}],"mul":"1 물"},"2026-07-23":{"exts":[{"h":2.933,"v":173,"hi":true},{"h":10.6,"v":101,"hi":false},{"h":18.683,"v":179,"hi":true}],"mul":"2 물"},"2026-07-24":{"exts":[{"h":0.233,"v":154,"hi":false},{"h":4.017,"v":164,"hi":true},{"h":11.733,"v":98,"hi":false},{"h":19.733,"v":191,"hi":true}],"mul":"3 물"},"2026-07-25":{"exts":[{"h":1.8,"v":148,"hi":false},{"h":5.7,"v":162,"hi":true},{"h":12.733,"v":90,"hi":false},{"h":20.4,"v":203,"hi":true}],"mul":"4 물"},"2026-07-26":{"exts":[{"h":2.567,"v":139,"hi":false},{"h":6.983,"v":167,"hi":true},{"h":13.55,"v":80,"hi":false},{"h":20.933,"v":214,"hi":true}],"mul":"5 물"},"2026-07-27":{"exts":[{"h":3.1,"v":130,"hi":false},{"h":7.867,"v":175,"hi":true},{"h":14.267,"v":69,"hi":false},{"h":21.417,"v":224,"hi":true}],"mul":"6 물"},"2026-07-28":{"exts":[{"h":3.583,"v":121,"hi":false},{"h":8.567,"v":186,"hi":true},{"h":14.917,"v":57,"hi":false},{"h":21.9,"v":233,"hi":true}],"mul":"7 물"},"2026-07-29":{"exts":[{"h":4.05,"v":113,"hi":false},{"h":9.2,"v":196,"hi":true},{"h":15.517,"v":47,"hi":false},{"h":22.367,"v":239,"hi":true}],"mul":"8 물"}}},"72":{"name":"서귀포","days":{"2026-07-15":{"exts":[{"h":4.667,"v":117,"hi":false},{"h":9.983,"v":262,"hi":true},{"h":16.35,"v":20,"hi":false},{"h":23.117,"v":330,"hi":true}],"mul":"9 물"},"2026-07-16":{"exts":[{"h":5.367,"v":110,"hi":false},{"h":10.783,"v":268,"hi":true},{"h":17.133,"v":26,"hi":false},{"h":23.783,"v":322,"hi":true}],"mul":"10 물"},"2026-07-17":{"exts":[{"h":6.033,"v":106,"hi":false},{"h":11.55,"v":266,"hi":true},{"h":17.867,"v":43,"hi":false}],"mul":"11 물"},"2026-07-18":{"exts":[{"h":0.417,"v":307,"hi":true},{"h":6.7,"v":106,"hi":false},{"h":12.333,"v":259,"hi":true},{"h":18.567,"v":69,"hi":false}],"mul":"12 물"},"2026-07-19":{"exts":[{"h":0.983,"v":287,"hi":true},{"h":7.333,"v":108,"hi":false},{"h":13.133,"v":246,"hi":true},{"h":19.267,"v":99,"hi":false}],"mul":"13 물"},"2026-07-20":{"exts":[{"h":1.517,"v":265,"hi":true},{"h":8.017,"v":112,"hi":false},{"h":14.033,"v":232,"hi":true},{"h":19.967,"v":130,"hi":false}],"mul":"14 물"},"2026-07-21":{"exts":[{"h":2.033,"v":245,"hi":true},{"h":8.717,"v":117,"hi":false},{"h":15.15,"v":220,"hi":true},{"h":20.817,"v":158,"hi":false}],"mul":"조금"},"2026-07-22":{"exts":[{"h":2.55,"v":227,"hi":true},{"h":9.567,"v":122,"hi":false},{"h":16.667,"v":215,"hi":true},{"h":22.083,"v":179,"hi":false}],"mul":"1 물"},"2026-07-23":{"exts":[{"h":3.217,"v":212,"hi":true},{"h":10.633,"v":124,"hi":false},{"h":18.433,"v":222,"hi":true}],"mul":"2 물"},"2026-07-24":{"exts":[{"h":0.133,"v":187,"hi":false},{"h":4.333,"v":202,"hi":true},{"h":11.817,"v":122,"hi":false},{"h":19.617,"v":235,"hi":true}],"mul":"3 물"},"2026-07-25":{"exts":[{"h":1.783,"v":181,"hi":false},{"h":5.917,"v":201,"hi":true},{"h":12.833,"v":115,"hi":false},{"h":20.35,"v":250,"hi":true}],"mul":"4 물"},"2026-07-26":{"exts":[{"h":2.583,"v":172,"hi":false},{"h":7.117,"v":207,"hi":true},{"h":13.667,"v":105,"hi":false},{"h":20.933,"v":263,"hi":true}],"mul":"5 물"},"2026-07-27":{"exts":[{"h":3.133,"v":162,"hi":false},{"h":7.967,"v":218,"hi":true},{"h":14.367,"v":92,"hi":false},{"h":21.45,"v":275,"hi":true}],"mul":"6 물"},"2026-07-28":{"exts":[{"h":3.617,"v":153,"hi":false},{"h":8.667,"v":230,"hi":true},{"h":14.983,"v":79,"hi":false},{"h":21.933,"v":284,"hi":true}],"mul":"7 물"},"2026-07-29":{"exts":[{"h":4.067,"v":143,"hi":false},{"h":9.283,"v":242,"hi":true},{"h":15.583,"v":68,"hi":false},{"h":22.4,"v":291,"hi":true}],"mul":"8 물"}}},"73":{"name":"모슬포","days":{"2026-07-15":{"exts":[{"h":5.333,"v":92,"hi":false},{"h":10.583,"v":232,"hi":true},{"h":23.85,"v":298,"hi":true}],"mul":"9 물"},"2026-07-16":{"exts":[{"h":6.05,"v":83,"hi":false},{"h":11.417,"v":236,"hi":true},{"h":17.85,"v":2,"hi":false}],"mul":"10 물"},"2026-07-17":{"exts":[{"h":0.533,"v":291,"hi":true},{"h":6.767,"v":78,"hi":false},{"h":12.233,"v":233,"hi":true},{"h":18.617,"v":17,"hi":false}],"mul":"11 물"},"2026-07-18":{"exts":[{"h":1.2,"v":277,"hi":true},{"h":7.467,"v":77,"hi":false},{"h":13.067,"v":224,"hi":true},{"h":19.367,"v":42,"hi":false}],"mul":"12 물"},"2026-07-19":{"exts":[{"h":1.817,"v":257,"hi":true},{"h":8.167,"v":81,"hi":false},{"h":13.917,"v":212,"hi":true},{"h":20.117,"v":73,"hi":false}],"mul":"13 물"},"2026-07-20":{"exts":[{"h":2.383,"v":234,"hi":true},{"h":8.883,"v":87,"hi":false},{"h":14.883,"v":200,"hi":true},{"h":20.917,"v":104,"hi":false}],"mul":"14 물"},"2026-07-21":{"exts":[{"h":2.9,"v":213,"hi":true},{"h":9.617,"v":93,"hi":false},{"h":16.1,"v":191,"hi":true},{"h":21.833,"v":133,"hi":false}],"mul":"조금"},"2026-07-22":{"exts":[{"h":3.417,"v":195,"hi":true},{"h":10.45,"v":98,"hi":false},{"h":17.733,"v":191,"hi":true},{"h":23.183,"v":153,"hi":false}],"mul":"1 물"},"2026-07-23":{"exts":[{"h":4.067,"v":182,"hi":true},{"h":11.417,"v":101,"hi":false},{"h":19.333,"v":199,"hi":true}],"mul":"2 물"},"2026-07-24":{"exts":[{"h":1.167,"v":160,"hi":false},{"h":5.167,"v":174,"hi":true},{"h":12.483,"v":98,"hi":false},{"h":20.4,"v":211,"hi":true}],"mul":"3 물"},"2026-07-25":{"exts":[{"h":2.6,"v":156,"hi":false},{"h":6.6,"v":175,"hi":true},{"h":13.483,"v":92,"hi":false},{"h":21.1,"v":223,"hi":true}],"mul":"4 물"},"2026-07-26":{"exts":[{"h":3.35,"v":148,"hi":false},{"h":7.733,"v":182,"hi":true},{"h":14.35,"v":83,"hi":false},{"h":21.667,"v":235,"hi":true}],"mul":"5 물"},"2026-07-27":{"exts":[{"h":3.9,"v":139,"hi":false},{"h":8.6,"v":192,"hi":true},{"h":15.083,"v":72,"hi":false},{"h":22.183,"v":244,"hi":true}],"mul":"6 물"},"2026-07-28":{"exts":[{"h":4.4,"v":130,"hi":false},{"h":9.317,"v":202,"hi":true},{"h":15.75,"v":61,"hi":false},{"h":22.667,"v":252,"hi":true}],"mul":"7 물"},"2026-07-29":{"exts":[{"h":4.883,"v":121,"hi":false},{"h":9.933,"v":210,"hi":true},{"h":16.35,"v":52,"hi":false},{"h":23.133,"v":258,"hi":true}],"mul":"8 물"}}},"77":{"name":"한림항","days":{"2026-07-15":{"exts":[{"h":6.133,"v":105,"hi":false},{"h":11.233,"v":251,"hi":true},{"h":17.867,"v":17,"hi":false}],"mul":"9 물"},"2026-07-16":{"exts":[{"h":0.367,"v":322,"hi":true},{"h":6.85,"v":100,"hi":false},{"h":12.033,"v":256,"hi":true},{"h":18.667,"v":25,"hi":false}],"mul":"10 물"},"2026-07-17":{"exts":[{"h":1.033,"v":316,"hi":true},{"h":7.567,"v":100,"hi":false},{"h":12.833,"v":256,"hi":true},{"h":19.433,"v":44,"hi":false}],"mul":"11 물"},"2026-07-18":{"exts":[{"h":1.7,"v":301,"hi":true},{"h":8.283,"v":102,"hi":false},{"h":13.667,"v":249,"hi":true},{"h":20.2,"v":72,"hi":false}],"mul":"12 물"},"2026-07-19":{"exts":[{"h":2.317,"v":282,"hi":true},{"h":9.017,"v":108,"hi":false},{"h":14.567,"v":238,"hi":true},{"h":20.983,"v":104,"hi":false}],"mul":"13 물"},"2026-07-20":{"exts":[{"h":2.9,"v":259,"hi":true},{"h":9.767,"v":115,"hi":false},{"h":15.667,"v":226,"hi":true},{"h":21.817,"v":137,"hi":false}],"mul":"14 물"},"2026-07-21":{"exts":[{"h":3.433,"v":238,"hi":true},{"h":10.567,"v":120,"hi":false},{"h":17.267,"v":219,"hi":true},{"h":22.833,"v":163,"hi":false}],"mul":"조금"},"2026-07-22":{"exts":[{"h":3.983,"v":219,"hi":true},{"h":11.45,"v":124,"hi":false},{"h":19,"v":221,"hi":true}],"mul":"1 물"},"2026-07-23":{"exts":[{"h":0.233,"v":179,"hi":false},{"h":4.7,"v":204,"hi":true},{"h":12.417,"v":125,"hi":false},{"h":20.283,"v":228,"hi":true}],"mul":"2 물"},"2026-07-24":{"exts":[{"h":2.15,"v":182,"hi":false},{"h":6.083,"v":194,"hi":true},{"h":13.433,"v":123,"hi":false},{"h":21.183,"v":238,"hi":true}],"mul":"3 물"},"2026-07-25":{"exts":[{"h":3.55,"v":174,"hi":false},{"h":7.55,"v":192,"hi":true},{"h":14.4,"v":117,"hi":false},{"h":21.833,"v":248,"hi":true}],"mul":"4 물"},"2026-07-26":{"exts":[{"h":4.267,"v":163,"hi":false},{"h":8.6,"v":197,"hi":true},{"h":15.233,"v":107,"hi":false},{"h":22.383,"v":257,"hi":true}],"mul":"5 물"},"2026-07-27":{"exts":[{"h":4.8,"v":152,"hi":false},{"h":9.417,"v":206,"hi":true},{"h":15.983,"v":95,"hi":false},{"h":22.867,"v":268,"hi":true}],"mul":"6 물"},"2026-07-28":{"exts":[{"h":5.267,"v":143,"hi":false},{"h":10.067,"v":216,"hi":true},{"h":16.633,"v":84,"hi":false},{"h":23.35,"v":277,"hi":true}],"mul":"7 물"},"2026-07-29":{"exts":[{"h":5.733,"v":136,"hi":false},{"h":10.667,"v":227,"hi":true},{"h":17.233,"v":73,"hi":false},{"h":23.783,"v":285,"hi":true}],"mul":"8 물"}}},"308":{"name":"김녕항","days":{"2026-07-15":{"exts":[{"h":5.467,"v":96,"hi":false},{"h":10.567,"v":229,"hi":true},{"h":17.2,"v":16,"hi":false},{"h":23.7,"v":295,"hi":true}],"mul":"9 물"},"2026-07-16":{"exts":[{"h":6.183,"v":91,"hi":false},{"h":11.367,"v":234,"hi":true},{"h":18,"v":23,"hi":false}],"mul":"10 물"},"2026-07-17":{"exts":[{"h":0.367,"v":289,"hi":true},{"h":6.9,"v":91,"hi":false},{"h":12.167,"v":234,"hi":true},{"h":18.767,"v":40,"hi":false}],"mul":"11 물"},"2026-07-18":{"exts":[{"h":1.033,"v":276,"hi":true},{"h":7.617,"v":93,"hi":false},{"h":13,"v":227,"hi":true},{"h":19.533,"v":66,"hi":false}],"mul":"12 물"},"2026-07-19":{"exts":[{"h":1.65,"v":258,"hi":true},{"h":8.35,"v":99,"hi":false},{"h":13.9,"v":218,"hi":true},{"h":20.317,"v":95,"hi":false}],"mul":"13 물"},"2026-07-20":{"exts":[{"h":2.233,"v":237,"hi":true},{"h":9.1,"v":105,"hi":false},{"h":15,"v":207,"hi":true},{"h":21.15,"v":126,"hi":false}],"mul":"14 물"},"2026-07-21":{"exts":[{"h":2.767,"v":218,"hi":true},{"h":9.9,"v":110,"hi":false},{"h":16.6,"v":200,"hi":true},{"h":22.167,"v":149,"hi":false}],"mul":"조금"},"2026-07-22":{"exts":[{"h":3.317,"v":200,"hi":true},{"h":10.783,"v":114,"hi":false},{"h":18.333,"v":202,"hi":true},{"h":23.567,"v":164,"hi":false}],"mul":"1 물"},"2026-07-23":{"exts":[{"h":4.033,"v":186,"hi":true},{"h":11.75,"v":115,"hi":false},{"h":19.617,"v":209,"hi":true}],"mul":"2 물"},"2026-07-24":{"exts":[{"h":1.483,"v":167,"hi":false},{"h":5.417,"v":178,"hi":true},{"h":12.767,"v":113,"hi":false},{"h":20.517,"v":218,"hi":true}],"mul":"3 물"},"2026-07-25":{"exts":[{"h":2.883,"v":159,"hi":false},{"h":6.883,"v":176,"hi":true},{"h":13.733,"v":107,"hi":false},{"h":21.167,"v":227,"hi":true}],"mul":"4 물"},"2026-07-26":{"exts":[{"h":3.6,"v":149,"hi":false},{"h":7.933,"v":180,"hi":true},{"h":14.567,"v":98,"hi":false},{"h":21.717,"v":235,"hi":true}],"mul":"5 물"},"2026-07-27":{"exts":[{"h":4.133,"v":139,"hi":false},{"h":8.75,"v":188,"hi":true},{"h":15.317,"v":87,"hi":false},{"h":22.2,"v":245,"hi":true}],"mul":"6 물"},"2026-07-28":{"exts":[{"h":4.6,"v":130,"hi":false},{"h":9.4,"v":198,"hi":true},{"h":15.967,"v":77,"hi":false},{"h":22.683,"v":254,"hi":true}],"mul":"7 물"},"2026-07-29":{"exts":[{"h":5.067,"v":125,"hi":false},{"h":10,"v":208,"hi":true},{"h":16.567,"v":67,"hi":false},{"h":23.117,"v":261,"hi":true}],"mul":"8 물"}}},"316":{"name":"중문","days":{"2026-07-15":{"exts":[{"h":4.85,"v":113,"hi":false},{"h":10.167,"v":255,"hi":true},{"h":16.533,"v":17,"hi":false},{"h":23.3,"v":323,"hi":true}],"mul":"9 물"},"2026-07-16":{"exts":[{"h":5.55,"v":106,"hi":false},{"h":10.967,"v":261,"hi":true},{"h":17.317,"v":23,"hi":false},{"h":23.967,"v":315,"hi":true}],"mul":"10 물"},"2026-07-17":{"exts":[{"h":6.217,"v":102,"hi":false},{"h":11.733,"v":259,"hi":true},{"h":18.05,"v":40,"hi":false}],"mul":"11 물"},"2026-07-18":{"exts":[{"h":0.6,"v":300,"hi":true},{"h":6.883,"v":102,"hi":false},{"h":12.517,"v":252,"hi":true},{"h":18.75,"v":65,"hi":false}],"mul":"12 물"},"2026-07-19":{"exts":[{"h":1.167,"v":280,"hi":true},{"h":7.517,"v":104,"hi":false},{"h":13.317,"v":240,"hi":true},{"h":19.45,"v":95,"hi":false}],"mul":"13 물"},"2026-07-20":{"exts":[{"h":1.7,"v":258,"hi":true},{"h":8.2,"v":108,"hi":false},{"h":14.217,"v":226,"hi":true},{"h":20.15,"v":126,"hi":false}],"mul":"14 물"},"2026-07-21":{"exts":[{"h":2.217,"v":239,"hi":true},{"h":8.9,"v":113,"hi":false},{"h":15.333,"v":214,"hi":true},{"h":21,"v":152,"hi":false}],"mul":"조금"},"2026-07-22":{"exts":[{"h":2.733,"v":221,"hi":true},{"h":9.75,"v":118,"hi":false},{"h":16.85,"v":209,"hi":true},{"h":22.267,"v":173,"hi":false}],"mul":"1 물"},"2026-07-23":{"exts":[{"h":3.4,"v":206,"hi":true},{"h":10.817,"v":120,"hi":false},{"h":18.617,"v":216,"hi":true}],"mul":"2 물"},"2026-07-24":{"exts":[{"h":0.317,"v":181,"hi":false},{"h":4.517,"v":196,"hi":true},{"h":12,"v":118,"hi":false},{"h":19.8,"v":229,"hi":true}],"mul":"3 물"},"2026-07-25":{"exts":[{"h":1.967,"v":175,"hi":false},{"h":6.1,"v":195,"hi":true},{"h":13.017,"v":111,"hi":false},{"h":20.533,"v":244,"hi":true}],"mul":"4 물"},"2026-07-26":{"exts":[{"h":2.767,"v":166,"hi":false},{"h":7.3,"v":201,"hi":true},{"h":13.85,"v":101,"hi":false},{"h":21.117,"v":256,"hi":true}],"mul":"5 물"},"2026-07-27":{"exts":[{"h":3.317,"v":156,"hi":false},{"h":8.15,"v":212,"hi":true},{"h":14.55,"v":88,"hi":false},{"h":21.633,"v":268,"hi":true}],"mul":"6 물"},"2026-07-28":{"exts":[{"h":3.8,"v":147,"hi":false},{"h":8.85,"v":224,"hi":true},{"h":15.167,"v":75,"hi":false},{"h":22.117,"v":277,"hi":true}],"mul":"7 물"},"2026-07-29":{"exts":[{"h":4.25,"v":139,"hi":false},{"h":9.467,"v":236,"hi":true},{"h":15.767,"v":64,"hi":false},{"h":22.583,"v":284,"hi":true}],"mul":"8 물"}}},"481":{"name":"위미항","days":{"2026-07-15":{"exts":[{"h":4.517,"v":113,"hi":false},{"h":9.833,"v":258,"hi":true},{"h":16.2,"v":16,"hi":false},{"h":22.967,"v":326,"hi":true}],"mul":"9 물"},"2026-07-16":{"exts":[{"h":5.217,"v":106,"hi":false},{"h":10.633,"v":264,"hi":true},{"h":16.983,"v":22,"hi":false},{"h":23.633,"v":318,"hi":true}],"mul":"10 물"},"2026-07-17":{"exts":[{"h":5.883,"v":102,"hi":false},{"h":11.4,"v":262,"hi":true},{"h":17.717,"v":39,"hi":false}],"mul":"11 물"},"2026-07-18":{"exts":[{"h":0.267,"v":303,"hi":true},{"h":6.55,"v":102,"hi":false},{"h":12.183,"v":255,"hi":true},{"h":18.417,"v":65,"hi":false}],"mul":"12 물"},"2026-07-19":{"exts":[{"h":0.833,"v":283,"hi":true},{"h":7.183,"v":104,"hi":false},{"h":12.983,"v":242,"hi":true},{"h":19.117,"v":95,"hi":false}],"mul":"13 물"},"2026-07-20":{"exts":[{"h":1.367,"v":261,"hi":true},{"h":7.867,"v":108,"hi":false},{"h":13.883,"v":228,"hi":true},{"h":19.817,"v":126,"hi":false}],"mul":"14 물"},"2026-07-21":{"exts":[{"h":1.883,"v":241,"hi":true},{"h":8.567,"v":113,"hi":false},{"h":15,"v":216,"hi":true},{"h":20.667,"v":154,"hi":false}],"mul":"조금"},"2026-07-22":{"exts":[{"h":2.4,"v":223,"hi":true},{"h":9.417,"v":118,"hi":false},{"h":16.517,"v":211,"hi":true},{"h":21.933,"v":175,"hi":false}],"mul":"1 물"},"2026-07-23":{"exts":[{"h":3.067,"v":208,"hi":true},{"h":10.483,"v":120,"hi":false},{"h":18.283,"v":218,"hi":true},{"h":23.983,"v":183,"hi":false}],"mul":"2 물"},"2026-07-24":{"exts":[{"h":4.183,"v":198,"hi":true},{"h":11.667,"v":118,"hi":false},{"h":19.467,"v":231,"hi":true}],"mul":"3 물"},"2026-07-25":{"exts":[{"h":1.633,"v":177,"hi":false},{"h":5.767,"v":197,"hi":true},{"h":12.683,"v":111,"hi":false},{"h":20.2,"v":246,"hi":true}],"mul":"4 물"},"2026-07-26":{"exts":[{"h":2.433,"v":168,"hi":false},{"h":6.967,"v":203,"hi":true},{"h":13.517,"v":101,"hi":false},{"h":20.783,"v":259,"hi":true}],"mul":"5 물"},"2026-07-27":{"exts":[{"h":2.983,"v":158,"hi":false},{"h":7.817,"v":214,"hi":true},{"h":14.217,"v":88,"hi":false},{"h":21.3,"v":271,"hi":true}],"mul":"6 물"},"2026-07-28":{"exts":[{"h":3.467,"v":149,"hi":false},{"h":8.517,"v":226,"hi":true},{"h":14.833,"v":75,"hi":false},{"h":21.783,"v":280,"hi":true}],"mul":"7 물"},"2026-07-29":{"exts":[{"h":3.917,"v":139,"hi":false},{"h":9.133,"v":238,"hi":true},{"h":15.433,"v":64,"hi":false},{"h":22.25,"v":287,"hi":true}],"mul":"8 물"}}}}};
+
+/* ================= 관측소 ================= */
+const STATIONS = [
+  {id:'67', name:'제주',   lat:33.527, lng:126.543, msl:158, amp:88,  lag:0.0},
+  {id:'72', name:'서귀포', lat:33.234, lng:126.561, msl:172, amp:106, lag:6.3},
+  {id:'71', name:'성산포', lat:33.474, lng:126.930, msl:150, amp:82,  lag:1.4},
+  {id:'73', name:'모슬포', lat:33.216, lng:126.251, msl:176, amp:112, lag:5.0},
+  {id:'66', name:'추자도', lat:33.957, lng:126.300, msl:150, amp:140, lag:2.0},
+  {id:'77', name:'한림항', lat:33.414, lng:126.265, msl:156, amp:86,  lag:0.7},
+  {id:'308',name:'김녕항', lat:33.559, lng:126.755, msl:150, amp:85,  lag:1.0},
+  {id:'316',name:'중문',   lat:33.244, lng:126.412, msl:170, amp:100, lag:6.0},
+  {id:'481',name:'위미항', lat:33.279, lng:126.660, msl:160, amp:95,  lag:4.0},
+];
+/* ================= 포구 수영 · 스노쿨링 스팟 (st: 기준 관측소) ================= */
+const SPOTS = [
+  {id:'panpo',   name:'판포포구',       type:'포구', st:'77',  lat:33.3475, lng:126.1899, note:'스노쿨링 성지 · 수심 깊음'},
+  {id:'wolryeong',name:'월령포구',      type:'포구', st:'77',  lat:33.3699, lng:126.2128, note:'선인장 마을 · 잔잔한 포구'},
+  {id:'hyeopjae',name:'협재해수욕장',   type:'해변', st:'77',  lat:33.3940, lng:126.2396, note:'얕고 잔잔 · 가족 물놀이'},
+  {id:'gwakji',  name:'곽지과물해변',   type:'해변', st:'77',  lat:33.4510, lng:126.3050, note:'용천수 노천탕'},
+  {id:'iho',     name:'이호테우해변',   type:'해변', st:'67',  lat:33.4977, lng:126.4530, note:'제주시 접근성 최고'},
+  {id:'samyang', name:'삼양검은모래',   type:'해변', st:'67',  lat:33.5250, lng:126.5850, note:'검은 모래찜질'},
+  {id:'hamdeok', name:'함덕서우봉해변', type:'해변', st:'308', lat:33.5434, lng:126.6694, note:'에메랄드빛 얕은 바다'},
+  {id:'gimnyeong',name:'김녕성세기해변',type:'해변', st:'308', lat:33.5575, lng:126.7595, note:'투명한 물빛 · 스노쿨링'},
+  {id:'woljeong',name:'월정리해변',     type:'해변', st:'308', lat:33.5560, lng:126.7960, note:'카페거리 · 서핑 입문'},
+  {id:'sehwa',   name:'세화해변',       type:'해변', st:'71',  lat:33.5251, lng:126.8604, note:'잔잔하고 얕은 물'},
+  {id:'hwangwuji',name:'황우지 선녀탕', type:'포구', st:'72',  lat:33.2402, lng:126.5495, note:'천연 암반 풀장 · 스노쿨링'},
+  {id:'sagye',   name:'사계해변',       type:'해변', st:'73',  lat:33.2225, lng:126.2910, note:'산방산 뷰'},
+  {id:'jungmun', name:'중문색달해변',   type:'해변', st:'316', lat:33.2446, lng:126.4120, note:'서핑 명소 · 파도 강함'},
+];
+const JEJU = {center:[33.38,126.53], bounds:[[33.10,126.10],[33.62,126.99]]};
+const THRESHOLD = 150;   /* 수심 150cm 이상 GOOD */
+const TIDE_T = 12.42;
+
+let stationId = '67';
+let curDate = new Date();
+let map, markerLayer, markerMap = {}, spotMarkerMap = {}, userMarker;
+let CHART = {};   /* 그래프 스크럽 상태 */
+let MAP_MODE = 'none', nmap = null, nMarkers = {}, nSpotMarkers = {}, nInfo = null, nUserMarker = null;
+
+const $ = id => document.getElementById(id);
+
+/* ---------- Heroicon SVG ---------- */
+const SA='fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
+const IC = {
+  up:`<svg class="ic" viewBox="0 0 24 24" ${SA}><path d="M12 19V5M6 11l6-6 6 6"/></svg>`,
+  down:`<svg class="ic" viewBox="0 0 24 24" ${SA}><path d="M12 5v14M6 13l6 6 6-6"/></svg>`,
+  wave:`<svg class="ic" viewBox="0 0 24 24" ${SA}><path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg>`,
+  check:`<svg class="ic" viewBox="0 0 24 24" ${SA}><path d="M9 12.75 11.25 15 15 9.75"/><circle cx="12" cy="12" r="9"/></svg>`,
+  warn:`<svg class="ic" viewBox="0 0 24 24" ${SA}><path d="M12 9v4M12 17h.01M10.3 3.9 2.7 17a1.9 1.9 0 0 0 1.7 2.9h15.2a1.9 1.9 0 0 0 1.7-2.9L13.7 3.9a1.9 1.9 0 0 0-3.4 0Z"/></svg>`,
+  clock:`<svg class="ic" viewBox="0 0 24 24" ${SA}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
+  swim:`<svg class="ic" viewBox="0 0 24 24" ${SA}><circle cx="16.5" cy="7" r="2.1"/><path d="M3 13.5 9 10l3.5 3"/><path d="M2 17.5c2-1.8 4-1.8 6 0s4 1.8 6 0 4-1.8 6 0"/></svg>`,
+  snorkel:`<svg class="ic" viewBox="0 0 24 24" ${SA}><rect x="3" y="8.5" width="12.5" height="6.5" rx="3.2"/><path d="M20.8 4v8.2a2.6 2.6 0 0 1-2.6 2.6"/><path d="M6.5 15.5 5.5 19M12 15.5l1 3.5"/></svg>`,
+  scuba:`<svg class="ic" viewBox="0 0 24 24" ${SA}><circle cx="8" cy="15" r="2.4"/><circle cx="14" cy="9.5" r="1.8"/><circle cx="18.2" cy="5.2" r="1.1"/><path d="M2.5 20.5c2-1.6 4-1.6 6 0s4 1.6 6 0 4-1.6 6 0"/></svg>`,
+  surf:`<svg class="ic" viewBox="0 0 24 24" ${SA}><path d="M20 4C13 4 6 11 4 20c9-2 16-9 16-16Z"/><path d="M13 11l-5 5"/></svg>`,
+  moon:`<svg class="ic" viewBox="0 0 24 24" ${SA}><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>`,
+};
+/* 날씨 아이콘 (Heroicon 스타일) */
+function wxCat(c){
+  if(c===0) return 'sun';
+  if(c===1||c===2) return 'partly';
+  if(c===3||c===45||c===48) return 'cloud';
+  if((c>=51&&c<=67)||(c>=80&&c<=82)) return 'rain';
+  if((c>=71&&c<=77)||c===85||c===86) return 'snow';
+  if(c>=95) return 'bolt';
+  return 'cloud';
+}
+const WLABEL={0:'맑음',1:'대체로 맑음',2:'구름 조금',3:'흐림',45:'안개',48:'짙은 안개',51:'약한 이슬비',53:'이슬비',55:'강한 이슬비',56:'어는 이슬비',57:'어는 이슬비',61:'약한 비',63:'비',65:'강한 비',66:'어는 비',67:'어는 비',71:'약한 눈',73:'눈',75:'강한 눈',77:'싸락눈',80:'소나기',81:'소나기',82:'강한 소나기',85:'눈 소나기',86:'눈 소나기',95:'뇌우',96:'뇌우·우박',99:'뇌우·우박'};
+function wxLabel(c){ return WLABEL[c]||'—'; }
+const CLOUD_LOW='M7 18.5a4 4 0 0 1-.5-7.96 5 5 0 0 1 9.7-1.16A3.75 3.75 0 1 1 16 18.5H7Z';
+const CLOUD_HI='M7 14.8a3.6 3.6 0 0 1-.45-7.16 4.5 4.5 0 0 1 8.73-1.04A3.4 3.4 0 1 1 15.4 14.8H7Z';
+function wxSVG(code){
+  const cat=wxCat(code); let inner='';
+  if(cat==='sun') inner='<circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.1M12 19.3v2.1M4.7 4.7l1.5 1.5M17.8 17.8l1.5 1.5M2.6 12h2.1M19.3 12h2.1M4.7 19.3l1.5-1.5M17.8 6.2l1.5-1.5"/>';
+  else if(cat==='cloud') inner='<path d="'+CLOUD_LOW+'"/>';
+  else if(cat==='partly') inner='<circle cx="8" cy="8" r="2.9"/><path d="M8 3.2v1.4M3.2 8H1.8M4.5 4.5l1 1"/><path d="M16 19a3.4 3.4 0 0 0 .3-6.78A4.4 4.4 0 0 0 8 12.4 3.6 3.6 0 0 0 8.4 19H16Z"/>';
+  else if(cat==='rain') inner='<path d="'+CLOUD_HI+'"/><path d="M8.3 17.6l-1 2.4M12 17.6l-1 2.4M15.7 17.6l-1 2.4"/>';
+  else if(cat==='snow') inner='<path d="'+CLOUD_HI+'"/><path d="M8.4 18.2h.01M12 18h.01M15.6 18.2h.01M10.2 20.4h.01M13.8 20.4h.01"/>';
+  else if(cat==='bolt') inner='<path d="'+CLOUD_HI+'"/><path d="M12.4 16.2 10 20h3l-2.2 3.4"/>';
+  return '<svg class="ic" viewBox="0 0 24 24" '+SA+'>'+inner+'</svg>';
+}
+
+/* ---------- 유틸 ---------- */
+function ymd2(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function hhmm(h){ h=((h%24)+24)%24; const m=Math.round(h*60); return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+function fmtDate(d){
+  const wd=['일','월','화','수','목','금','토'][d.getDay()];
+  const t=new Date(); t.setHours(0,0,0,0); const dd=new Date(d); dd.setHours(0,0,0,0);
+  const diff=Math.round((dd-t)/86400000);
+  const tag=diff===0?' (오늘)':diff===1?' (내일)':diff===-1?' (어제)':'';
+  return `${d.getMonth()+1}/${d.getDate()}(${wd})${tag}`;
+}
+
+/* ---------- 조석 ---------- */
+function lunarInfo(dm){
+  const REF=Date.UTC(2000,0,6,18,14);
+  const age=(((dm.getTime()-REF)/86400000)%29.53059+29.53059)%29.53059;
+  const sf=0.72+0.5*Math.abs(Math.cos(Math.PI*age/14.76529));
+  return {sf, label: sf>1.05?'사리':sf<0.85?'조금':'중물'};
+}
+function modelHeight(st,dm,h){
+  const absH=dm.getTime()/3600000+h; const sf=lunarInfo(dm).sf;
+  return Math.round(st.msl+st.amp*sf*Math.cos(2*Math.PI*(absH-st.lag)/TIDE_T)+st.amp*0.16*Math.cos(2*Math.PI*(absH-st.lag)/23.934));
+}
+function getLiveDay(stId, dm){
+  const st=TIDE_DATA.stations[stId]; if(!st||!st.days) return null;
+  const d=st.days[ymd2(dm)]; return (d&&d.exts&&d.exts.length>=2)?d:null;
+}
+function extendExts(exts){
+  if(exts.length<2) return exts;
+  const f=exts[0],s=exts[1],l=exts[exts.length-1],p=exts[exts.length-2];
+  return [{h:f.h-(s.h-f.h),v:s.v},...exts,{h:l.h+(l.h-p.h),v:p.v}];
+}
+function interpLevel(exts,h){
+  for(let i=0;i<exts.length-1;i++){ const a=exts[i],b=exts[i+1];
+    if(h>=a.h&&h<=b.h){ const x=(h-a.h)/(b.h-a.h); return Math.round(a.v+(b.v-a.v)*(1-Math.cos(Math.PI*x))/2); } }
+  return exts[h<exts[0].h?0:exts.length-1].v;
+}
+function levelFn(st, dm){
+  const ld=getLiveDay(st.id, dm);
+  if(ld){ const ex=extendExts(ld.exts); return {levelAt:h=>interpLevel(ex,h), live:true, day:ld}; }
+  return {levelAt:h=>modelHeight(st,dm,h), live:false, day:null};
+}
+
+/* ---------- 그래프 스크럽(점 이동 → 시간별 수심 표시) ---------- */
+function drawScrub(h){
+  if(!CHART.levelAt) return;
+  h=Math.max(0,Math.min(24,h));
+  const v=CHART.levelAt(h), good=v>=THRESHOLD, x=CHART.X(h).toFixed(1);
+  const dot=document.getElementById('scrubDot'), ln=document.getElementById('scrubLine');
+  if(dot){ dot.setAttribute('cx',x); dot.setAttribute('cy',CHART.Y(v).toFixed(1)); dot.setAttribute('fill',good?'#2E6FF2':'#ef4444'); }
+  if(ln){ ln.setAttribute('x1',x); ln.setAttribute('x2',x); }
+  const isNow=CHART.isToday && Math.abs(h-CHART.curH)<0.09;
+  $('chartReadout').innerHTML=`<span class="rt">${isNow?'지금 · ':''}${hhmm(h)}</span>`
+    +`<span class="rv ${good?'g':'b'}">${v}<i>cm</i></span>`
+    +`<span class="rb ${good?'g':'b'}">${good?'GOOD':'BAD'}</span>`;
+  CHART.scrubH=h;
+}
+function xToHour(clientX){
+  const svg=document.getElementById('tideSvg'); if(!svg) return 0;
+  const r=svg.getBoundingClientRect();
+  const vbX=(clientX-r.left)/r.width*CHART.W;
+  return Math.max(0,Math.min(24,(vbX-CHART.padL)/(CHART.W-CHART.padL-CHART.padR)*24));
+}
+
+/* ---------- 렌더 ---------- */
+function renderTide(){
+  const st=STATIONS.find(s=>s.id===stationId)||STATIONS[0];
+  const dm=new Date(curDate.getFullYear(),curDate.getMonth(),curDate.getDate());
+  $('dateLbl').textContent=fmtDate(curDate);
+  const {levelAt, live, day}=levelFn(st,dm);
+  const moon=lunarInfo(dm);
+  const mul=(live&&day.mul)?day.mul:moon.label;
+
+  const N=145, hAt=i=>i*24/(N-1), ys=[];
+  for(let i=0;i<N;i++) ys.push(levelAt(hAt(i)));
+  const lo=Math.min(...ys), hi=Math.max(...ys);
+
+  let ext=[];
+  if(live){ ext=day.exts.map(e=>({t:e.h,v:e.v,hi:e.hi})); }
+  else { for(let i=1;i<N-1;i++){ if(ys[i]>=ys[i-1]&&ys[i]>ys[i+1])ext.push({t:hAt(i),v:ys[i],hi:true}); else if(ys[i]<=ys[i-1]&&ys[i]<ys[i+1])ext.push({t:hAt(i),v:ys[i],hi:false}); } }
+  ext.sort((a,b)=>a.t-b.t);
+
+  const wins=[]; let s=null;
+  for(let i=0;i<N;i++){ const g=ys[i]>=THRESHOLD; if(g&&s===null)s=i; if((!g||i===N-1)&&s!==null){ const e=(g&&i===N-1)?i:i-1; wins.push([hAt(s),hAt(e)]); s=null; } }
+
+  const now=new Date();
+  const isToday=dm.toDateString()===now.toDateString();
+  const curH=isToday?now.getHours()+now.getMinutes()/60:12;
+  const curV=levelAt(curH);
+  const good=curV>=THRESHOLD;
+
+  $('tideNow').innerHTML=`<div class="tnow ${good?'good':'bad'}">
+    <div class="tnow-badge">${good?'GOOD':'BAD'}</div>
+    <div class="tnow-val">${curV}<span>cm</span></div>
+    <div class="tnow-sub">${isToday?'지금':'12:00'} · ${st.name} · 물때 <b>${mul}</b></div>
+    <div class="tnow-msg">${good?'수심 150cm 이상 — 물때 좋아요':'수심 150cm 미만 — 지금은 별로예요'}</div>
+  </div>`;
+
+  /* 물흐름 / 다음 만조·간조 */
+  const rising=levelAt(curH+0.08)>=curV;
+  $('flowIc').innerHTML=rising?IC.up:IC.down;
+  $('flowVal').textContent=rising?'밀물 (들물)':'썰물 (날물)';
+  let nx=ext.find(e=>e.t>curH+0.001);
+  if(nx){ const rem=(nx.t-curH); const rh=Math.floor(rem), rm=Math.round((rem-rh)*60);
+    $('nextIc').innerHTML=nx.hi?IC.up:IC.down;
+    $('nextLbl').textContent='다음 '+(nx.hi?'만조':'간조');
+    $('nextVal').textContent=`${hhmm(nx.t)} · ${rh>0?rh+'시간 ':''}${rm}분 뒤`;
+  } else { $('nextIc').innerHTML=IC.clock; $('nextLbl').textContent='다음'; $('nextVal').textContent='내일'; }
+
+  /* 차트 */
+  const W=340,H=150,padL=8,padR=8,padT=12,padB=20;
+  const yLo=Math.min(lo,THRESHOLD)-15, yHi=Math.max(hi,THRESHOLD)+15;
+  const X=h=>padL+(W-padL-padR)*(h/24);
+  const Y=v=>padT+(H-padT-padB)*(1-(v-yLo)/(yHi-yLo));
+  let segs='';
+  for(let i=0;i<N-1;i++){ const mid=(ys[i]+ys[i+1])/2, col=mid>=THRESHOLD?'#2E6FF2':'#ef4444';
+    segs+=`<line x1="${X(hAt(i)).toFixed(1)}" y1="${Y(ys[i]).toFixed(1)}" x2="${X(hAt(i+1)).toFixed(1)}" y2="${Y(ys[i+1]).toFixed(1)}" stroke="${col}" stroke-width="2.4" stroke-linecap="round"/>`; }
+  const ty=Y(THRESHOLD).toFixed(1);
+  let xl=''; [0,6,12,18,24].forEach(h=>{ xl+=`<text x="${X(h).toFixed(1)}" y="${H-5}" fill="#9fb3c4" font-size="9" text-anchor="middle">${h}시</text>`; });
+  $('tideChart').innerHTML=`<svg id="tideSvg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <line x1="${padL}" y1="${ty}" x2="${W-padR}" y2="${ty}" stroke="#7f9bb3" stroke-width="1" stroke-dasharray="4 4"/>
+    <text x="${W-padR}" y="${(+ty-4)}" fill="#9fb3c4" font-size="9" text-anchor="end">150cm</text>
+    ${segs}${xl}
+    <line id="scrubLine" x1="0" y1="${padT}" x2="0" y2="${H-padB}" stroke="#eef4f8" stroke-width="1" stroke-dasharray="2 3" opacity="0.65"/>
+    <circle id="scrubDot" cx="0" cy="0" r="5" fill="#2E6FF2" stroke="#fff" stroke-width="1.6"/></svg>`;
+  // 스크럽 상태 저장 후, 처음엔 현재(오늘) 또는 12:00 위치에 점 표시
+  CHART = {levelAt, X, Y, isToday, curH, W, padL, padR};
+  drawScrub(isToday ? curH : 12);
+
+  $('extHead').innerHTML='만조 / 간조'+(live?' <span style="color:#34d399;font-weight:600">· 공식 예보</span>':' <span style="color:#f59e0b;font-weight:600">· 예측</span>');
+  $('tideExt').innerHTML=ext.map(e=>
+    `<div class="rowi"><span class="pill ${e.hi?'hi':'lo'}">${e.hi?'만조':'간조'}</span><span>${hhmm(e.t)}</span><span class="tv">${e.v}cm</span></div>`).join('')||'<div class="rowi">—</div>';
+  $('tideWin').innerHTML=wins.length?wins.map(w=>`<div class="good-win">${IC.check}${hhmm(w[0])} ~ ${hhmm(w[1])}</div>`).join(''):'<div class="nowin">이 날은 150cm 이상 구간이 없어요</div>';
+
+  const upd=TIDE_DATA.updated?new Date(TIDE_DATA.updated).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+  $('srcLbl').innerHTML = live
+    ? `<span class="dot"></span> 실시간 물때표${upd?` · 갱신 ${upd}`:''}`
+    : `<span class="dot pred"></span> 예측 물때 (내장 데이터 범위 밖 날짜)`;
+
+  renderMarkers();
+}
+
+/* ---------- 날씨 (Open-Meteo) ---------- */
+let wxToken=0;
+const WXST={wind:null, gust:null, code:null, uv:null, sunrise:null, sunset:null};
+function uvWord(u){ if(u==null) return '—'; const r=Math.round(u); return r+(r>=8?' 매우높음':r>=6?' 높음':r>=3?' 보통':' 낮음'); }
+async function fetchWeather(){
+  const st=STATIONS.find(s=>s.id===stationId)||STATIONS[0];
+  const tok=++wxToken;
+  $('wxCard').innerHTML='<div class="wxcond">날씨 불러오는 중…</div>';
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${st.lat}&longitude=${st.lng}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m,uv_index&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=Asia%2FSeoul&forecast_days=3&wind_speed_unit=ms`;
+    const r=await fetch(url); if(!r.ok) throw 0;
+    const j=await r.json(); if(tok!==wxToken) return;
+    const c=j.current;
+    WXST.wind=c.wind_speed_10m; WXST.gust=c.wind_gusts_10m; WXST.code=c.weather_code; WXST.uv=c.uv_index;
+    WXST.sunrise=(j.daily.sunrise&&j.daily.sunrise[0])?new Date(j.daily.sunrise[0]):null;
+    WXST.sunset =(j.daily.sunset &&j.daily.sunset[0]) ?new Date(j.daily.sunset[0]) :null;
+    const sr=WXST.sunrise?j.daily.sunrise[0].slice(11,16):'—', ss=WXST.sunset?j.daily.sunset[0].slice(11,16):'—';
+    const days=(j.daily.time||[]).map((t,i)=>{ const dd=new Date(t); const wd=['일','월','화','수','목','금','토'][dd.getDay()];
+      return `<div class="wxday"><div class="d">${i===0?'오늘':wd}</div><div class="e">${wxSVG(j.daily.weather_code[i])}</div><div class="t"><span class="mx">${Math.round(j.daily.temperature_2m_max[i])}°</span> <span class="mn">${Math.round(j.daily.temperature_2m_min[i])}°</span></div></div>`; }).join('');
+    $('wxCard').innerHTML=`
+      <div class="wxhead"><span class="wxicon">${wxSVG(c.weather_code)}</span>
+        <div><div class="wxtemp">${Math.round(c.temperature_2m)}<span>°C</span></div><div class="wxcond">${st.name} · ${wxLabel(c.weather_code)}</div></div></div>
+      <div class="wxrows"><span>체감 <b>${Math.round(c.apparent_temperature)}°</b></span><span>습도 <b>${c.relative_humidity_2m}%</b></span><span>바람 <b>${c.wind_speed_10m}m/s</b></span><span>자외선 <b>${uvWord(c.uv_index)}</b></span></div>
+      <div class="wxrows" style="margin-top:6px"><span>일출 <b>${sr}</b></span><span>일몰 <b>${ss}</b></span><span id="marRow"></span></div>
+      <div class="wxfore">${days}</div>`;
+    updMarineRow();
+  }catch(e){ if(tok===wxToken){ WXST.wind=WXST.gust=WXST.code=WXST.uv=WXST.sunrise=WXST.sunset=null; $('wxCard').innerHTML='<div class="wxerr">'+IC.warn+'<span>날씨를 불러올 수 없어요 (인터넷 연결 확인)</span></div>'; } }
+  renderActs();
+}
+
+/* ---------- 파고·수온 (Open-Meteo Marine) ---------- */
+let marToken=0;
+const MAR={wave:null, period:null, sst:null};
+async function fetchMarine(){
+  const st=STATIONS.find(s=>s.id===stationId)||STATIONS[0];
+  const tok=++marToken;
+  try{
+    const url=`https://marine-api.open-meteo.com/v1/marine?latitude=${st.lat}&longitude=${st.lng}&current=wave_height,wave_period,sea_surface_temperature&timezone=Asia%2FSeoul`;
+    const r=await fetch(url); if(!r.ok) throw 0;
+    const j=await r.json(); if(tok!==marToken) return;
+    MAR.wave=j.current.wave_height; MAR.period=j.current.wave_period; MAR.sst=j.current.sea_surface_temperature;
+  }catch(e){ if(tok===marToken){ MAR.wave=MAR.period=MAR.sst=null; } }
+  updMarineRow();
+  renderActs();
+}
+function updMarineRow(){
+  const el=document.getElementById('marRow'); if(!el) return;
+  el.innerHTML=(MAR.sst!=null||MAR.wave!=null)
+    ? `수온 <b>${MAR.sst!=null?Math.round(MAR.sst*10)/10+'°':'—'}</b> &nbsp;파고 <b>${MAR.wave!=null?MAR.wave.toFixed(1)+'m':'—'}</b>`
+    : '';
+}
+
+/* ---------- 액티비티 추천 (지금 조건: 수심 + 파고 + 바람 + 날씨) ---------- */
+function renderActs(){
+  const el=$('actGrid'); if(!el) return;
+  const st=STATIONS.find(s=>s.id===stationId)||STATIONS[0];
+  const {v,good}=stationNow(st);
+  const wave=MAR.wave, wind=WXST.wind, code=WXST.code;
+  const storm=code!=null&&code>=95;
+  const rain=code!=null&&((code>=61&&code<=67)||(code>=80&&code<=82));
+  const sf=lunarInfo(new Date()).sf;
+  const acts=[];
+  const push=(nm,em,lv,rs)=>acts.push({nm,em,lv,rs});
+
+  /* 포구 수영 */
+  { let lv=good?0:2, rs=[good?`수심 ${v}cm 충분`:`수심 ${v}cm 부족`];
+    if(wave!=null){ if(wave>1){lv=2; rs.push(`파고 ${wave.toFixed(1)}m 높음`);} else if(wave>0.5){lv=Math.max(lv,1); rs.push(`파고 ${wave.toFixed(1)}m`);} else if(lv===0) rs.push(`파고 ${wave.toFixed(1)}m 잔잔`); }
+    if(wind!=null){ if(wind>=10){lv=2; rs.push(`강풍 ${wind}m/s`);} else if(wind>=7){lv=Math.max(lv,1); rs.push(`바람 ${wind}m/s`);} }
+    if(storm){lv=2; rs=['뇌우 — 입수 금지'];}
+    push('포구 수영',IC.swim,lv,rs); }
+
+  /* 스노쿨링 */
+  { let lv=good?0:2, rs=[good?`수심 ${v}cm GOOD`:`수심 ${v}cm 부족`];
+    if(wave!=null){ if(wave>0.8){lv=2; rs.push(`파고 ${wave.toFixed(1)}m — 시야 나쁨`);} else if(wave>0.4){lv=Math.max(lv,1); rs.push(`파고 ${wave.toFixed(1)}m`);} else if(lv===0) rs.push('물 맑고 잔잔'); }
+    if(rain){lv=Math.max(lv,1); rs.push('비 — 시야 저하');}
+    if(storm){lv=2; rs=['뇌우 — 입수 금지'];}
+    push('스노쿨링',IC.snorkel,lv,rs); }
+
+  /* 스킨스쿠버 */
+  { let lv=0, rs=[];
+    if(wave!=null){ if(wave>1.5){lv=2; rs.push(`파고 ${wave.toFixed(1)}m 높음`);} else if(wave>0.8){lv=1; rs.push(`파고 ${wave.toFixed(1)}m`);} else rs.push(`파고 ${wave.toFixed(1)}m 무난`); }
+    if(wind!=null&&wind>=12){lv=2; rs.push(`강풍 ${wind}m/s`);}
+    if(sf>1.05){lv=Math.max(lv,1); rs.push('사리 — 조류 강함');}
+    if(storm){lv=2; rs=['뇌우 — 다이빙 금지'];}
+    if(!rs.length) rs.push('조건 확인 중');
+    push('스킨스쿠버',IC.scuba,lv,rs); }
+
+  /* 서핑 */
+  { let lv, rs;
+    if(wave==null){ lv=1; rs=['파고 정보 없음']; }
+    else if(wave<0.3){ lv=2; rs=[`파고 ${wave.toFixed(1)}m — 파도 없음`]; }
+    else if(wave<0.6){ lv=1; rs=[`파고 ${wave.toFixed(1)}m 잔잔`]; }
+    else if(wave<=2.0){ lv=0; rs=[`파고 ${wave.toFixed(1)}m 좋아요`]; }
+    else if(wave<=2.5){ lv=1; rs=[`파고 ${wave.toFixed(1)}m 높음 — 상급자`]; }
+    else { lv=2; rs=[`파고 ${wave.toFixed(1)}m — 위험`]; }
+    if(wind!=null&&wind>=10){lv=Math.max(lv,1); rs.push(`바람 ${wind}m/s`);}
+    if(storm){lv=2; rs=['뇌우 — 서핑 금지'];}
+    push('서핑',IC.surf,lv,rs); }
+
+  const lvName=l=>l===2?'주의':l===1?'보통':'좋음';
+  el.innerHTML=acts.map(a=>`<div class="act l${a.lv}"><div class="ah"><span class="ai">${a.em}</span><span class="nm">${a.nm}</span><span class="ab l${a.lv}">${lvName(a.lv)}</span></div><div class="ar">${a.rs.slice(0,2).join(' · ')}</div></div>`).join('');
+
+  const now=new Date();
+  $('actNote').innerHTML=(WXST.sunrise&&WXST.sunset&&(now<WXST.sunrise||now>WXST.sunset))?IC.moon+'<span>야간 — 입수는 해 뜬 뒤에</span>':'';
+}
+
+/* ================= 지도 (네이버 지도 우선, 실패 시 기본 지도 폴백) ================= */
+/* ▼▼▼ 네이버 지도를 켜려면 네이버 클라우드 지도 키(ncpKeyId)를 넣으세요. 비워두면 기본 지도로 동작 ▼▼▼ */
+const NAVER_KEY = "여기에_네이버_지도_ncpKeyId_붙여넣기";
+/* ▲▲▲ */
+
+function stationNow(st){
+  const dm=new Date(); dm.setHours(0,0,0,0);
+  const now=new Date(); const v=levelFn(st,dm).levelAt(now.getHours()+now.getMinutes()/60);
+  return {v, good:v>=THRESHOLD};
+}
+function markerInner(st, sel){
+  const {v,good}=stationNow(st); const col=good?'#2E6FF2':'#ef4444';
+  return `<div style="display:flex;flex-direction:column;align-items:center;transform:scale(${sel?1.12:1});transition:transform .15s">
+      <div style="min-width:22px;height:22px;padding:0 6px;border-radius:12px;background:${col};color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;border:${sel?'2px solid #fff':'1px solid rgba(0,0,0,.35)'};box-shadow:0 2px 7px rgba(0,0,0,.55)">${v}</div>
+      <div style="font-size:10px;color:#eef4f8;text-shadow:0 1px 3px #000;margin-top:1px;font-weight:700;white-space:nowrap">${st.name}</div>
+    </div>`;
+}
+function popupInner(st){
+  const {v,good}=stationNow(st);
+  const dm=new Date(); dm.setHours(0,0,0,0); const ld=getLiveDay(st.id,dm);
+  const mul=ld&&ld.mul?ld.mul:lunarInfo(dm).label; const c=good?'#2E6FF2':'#ef4444';
+  return `<b>${st.name}</b> · 물때 ${mul}<br>현재 수심 <b style="color:${c}">${v}cm</b> <b style="color:${c}">${good?'GOOD':'BAD'}</b>`;
+}
+function userDotHTML(){ return '<div style="width:16px;height:16px;border-radius:50%;background:#2E6FF2;border:3px solid #fff;box-shadow:0 0 0 4px rgba(46,111,242,.35)"></div>'; }
+function spotColor(sp){ return sp.type==='포구'?'#2E6FF2':'#8fb4ff'; }
+function spotMarkerInner(sp){
+  return `<div style="display:flex;flex-direction:column;align-items:center">
+      <div style="width:11px;height:11px;border-radius:50%;background:${spotColor(sp)};border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.6)"></div>
+      <div style="font-size:9.5px;color:#dbe7ff;text-shadow:0 1px 3px #000;margin-top:1px;font-weight:600;white-space:nowrap">${sp.name}</div>
+    </div>`;
+}
+function spotPopupInner(sp){
+  const st=STATIONS.find(s=>s.id===sp.st)||STATIONS[0];
+  const {v,good}=stationNow(st); const c=good?'#2E6FF2':'#ef4444';
+  return `<b>${sp.name}</b> · ${sp.type}<br>${sp.note}<br>기준 ${st.name} · 현재 <b style="color:${c}">${v}cm ${good?'GOOD':'BAD'}</b>`;
+}
+
+/* --- 모드 공통 디스패치 --- */
+function renderMarkers(){ if(MAP_MODE==='naver') renderNaverMarkers(); else if(MAP_MODE==='leaflet') renderLeafletMarkers(); }
+function selectStation(id, fromMap){
+  stationId=id; $('stationSel').value=id; renderTide(); fetchWeather(); fetchMarine();
+  const st=STATIONS.find(s=>s.id===id); if(!st) return;
+  if(MAP_MODE==='naver'&&nmap){ nmap.panTo(new naver.maps.LatLng(st.lat,st.lng)); if(fromMap) openNaverInfo(id); }
+  else if(MAP_MODE==='leaflet'&&map){ map.panTo([st.lat,st.lng]); if(fromMap&&markerMap[id]) markerMap[id].openPopup(); }
+}
+function selectSpot(id){
+  const sp=SPOTS.find(s=>s.id===id); if(!sp) return;
+  stationId=sp.st; $('stationSel').value=sp.st; renderTide(); fetchWeather(); fetchMarine();
+  const mapEl=document.getElementById('map'); if(mapEl&&mapEl.scrollIntoView) mapEl.scrollIntoView({behavior:'smooth',block:'center'});
+  if(MAP_MODE==='naver'&&nmap){ nmap.setCenter(new naver.maps.LatLng(sp.lat,sp.lng)); nmap.setZoom(12); openNaverSpotInfo(id); }
+  else if(MAP_MODE==='leaflet'&&map){ map.setView([sp.lat,sp.lng],12); if(spotMarkerMap[id]) spotMarkerMap[id].openPopup(); }
+}
+
+/* --- 네이버 지도 --- */
+function initNaverMap(){
+  nmap=new naver.maps.Map('map',{ center:new naver.maps.LatLng(JEJU.center[0],JEJU.center[1]), zoom:10, minZoom:9, logoControl:true, mapDataControl:false, scaleControl:false });
+  MAP_MODE='naver';
+  renderNaverMarkers();
+}
+function renderNaverMarkers(){
+  if(!nmap) return;
+  Object.values(nMarkers).forEach(m=>m.setMap(null)); nMarkers={};
+  Object.values(nSpotMarkers).forEach(m=>m.setMap(null)); nSpotMarkers={};
+  SPOTS.forEach(sp=>{
+    const m=new naver.maps.Marker({ position:new naver.maps.LatLng(sp.lat,sp.lng), map:nmap,
+      icon:{ content:spotMarkerInner(sp), anchor:new naver.maps.Point(30,8) }, zIndex:5 });
+    naver.maps.Event.addListener(m,'click',()=>openNaverSpotInfo(sp.id));
+    nSpotMarkers[sp.id]=m;
+  });
+  STATIONS.forEach(st=>{
+    const m=new naver.maps.Marker({ position:new naver.maps.LatLng(st.lat,st.lng), map:nmap,
+      icon:{ content:markerInner(st, st.id===stationId), anchor:new naver.maps.Point(27,40) }, zIndex: st.id===stationId?100:10 });
+    naver.maps.Event.addListener(m,'click',()=>selectStation(st.id,true));
+    nMarkers[st.id]=m;
+  });
+}
+function openNaverInfo(id){
+  const st=STATIONS.find(s=>s.id===id); if(!st||!nmap) return;
+  if(!nInfo) nInfo=new naver.maps.InfoWindow({ content:'', borderWidth:0, backgroundColor:'#fff', pixelOffset:new naver.maps.Point(0,-8) });
+  nInfo.setContent('<div style="padding:9px 12px;font-family:Pretendard,sans-serif;font-size:12.5px;line-height:1.6;color:#1f2937">'+popupInner(st)+'</div>');
+  nInfo.open(nmap, nMarkers[id]);
+}
+function openNaverSpotInfo(id){
+  const sp=SPOTS.find(s=>s.id===id); if(!sp||!nmap||!nSpotMarkers[id]) return;
+  if(!nInfo) nInfo=new naver.maps.InfoWindow({ content:'', borderWidth:0, backgroundColor:'#fff', pixelOffset:new naver.maps.Point(0,-4) });
+  nInfo.setContent('<div style="padding:9px 12px;font-family:Pretendard,sans-serif;font-size:12.5px;line-height:1.6;color:#1f2937">'+spotPopupInner(sp)+'</div>');
+  nInfo.open(nmap, nSpotMarkers[id]);
+}
+
+/* --- 기본 지도(Leaflet) : 네이버 키 없거나 실패 시 --- */
+function initLeafletMap(){
+  try{
+    map=L.map('map',{center:JEJU.center,zoom:10,minZoom:9,maxZoom:16,maxBounds:JEJU.bounds,maxBoundsViscosity:1.0});
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(map);
+    map.fitBounds(JEJU.bounds);
+    markerLayer=L.layerGroup().addTo(map);
+    MAP_MODE='leaflet';
+    renderLeafletMarkers();
+  }catch(e){ $('map').outerHTML='<div class="maperr">지도를 불러오려면 인터넷 연결이 필요합니다.</div>'; }
+}
+function renderLeafletMarkers(){
+  if(!markerLayer) return;
+  markerLayer.clearLayers(); markerMap={}; spotMarkerMap={};
+  SPOTS.forEach(sp=>{
+    const m=L.marker([sp.lat,sp.lng],{icon:L.divIcon({className:'',iconSize:[70,28],iconAnchor:[35,7],popupAnchor:[0,-8],html:spotMarkerInner(sp)}),zIndexOffset:-10});
+    m.bindPopup('<div class="lpop">'+spotPopupInner(sp)+'</div>');
+    markerLayer.addLayer(m); spotMarkerMap[sp.id]=m;
+  });
+  STATIONS.forEach(st=>{
+    const m=L.marker([st.lat,st.lng],{icon:L.divIcon({className:'',iconSize:[54,54],iconAnchor:[27,40],popupAnchor:[0,-38],html:markerInner(st, st.id===stationId)})});
+    m.bindPopup('<div class="lpop">'+popupInner(st)+'</div>');
+    m.on('click',()=>selectStation(st.id,true));
+    markerLayer.addLayer(m); markerMap[st.id]=m;
+  });
+}
+
+/* --- 지도 시작 --- */
+function startMap(){
+  const hasKey = NAVER_KEY && NAVER_KEY.indexOf('여기에')<0;
+  if(hasKey){
+    window.navermaps_authFailure=function(){ startLeaflet(true); };
+    const s=document.createElement('script');
+    s.src='https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId='+encodeURIComponent(NAVER_KEY);
+    s.onload=()=>{ setTimeout(()=>{ if(MAP_MODE==='none'){ if(window.naver&&naver.maps){ try{ initNaverMap(); }catch(e){ startLeaflet(true); } } else startLeaflet(true); } },60); };
+    s.onerror=()=>startLeaflet(true);
+    document.head.appendChild(s);
+  } else {
+    startLeaflet(false);
+  }
+}
+function startLeaflet(clearNaver){
+  if(MAP_MODE==='leaflet') return;
+  if(clearNaver){ const el=$('map'); if(el) el.innerHTML=''; MAP_MODE='none'; nmap=null; }
+  if(window.L) initLeafletMap();
+  else { const el=$('map'); if(el) el.outerHTML='<div class="maperr">지도를 불러오려면 인터넷 연결이 필요합니다.</div>'; }
+}
+
+/* ---------- GPS 내 위치 ---------- */
+function showUser(lat,lng,inJeju){
+  if(MAP_MODE==='naver'&&nmap){
+    if(nUserMarker) nUserMarker.setMap(null);
+    nUserMarker=new naver.maps.Marker({ position:new naver.maps.LatLng(lat,lng), map:nmap, icon:{content:userDotHTML(),anchor:new naver.maps.Point(9,9)}, zIndex:200 });
+    if(inJeju){ nmap.setCenter(new naver.maps.LatLng(lat,lng)); nmap.setZoom(12); }
+  } else if(MAP_MODE==='leaflet'&&map){
+    if(userMarker) map.removeLayer(userMarker);
+    userMarker=L.marker([lat,lng],{icon:L.divIcon({className:'',iconSize:[18,18],iconAnchor:[9,9],html:userDotHTML()})}).addTo(map);
+    if(inJeju) map.setView([lat,lng],12); else map.fitBounds(JEJU.bounds);
+  }
+}
+function locateMe(){
+  if(!navigator.geolocation){ alert('이 브라우저는 위치를 지원하지 않아요.'); return; }
+  const btn=$('locBtn'); const old=btn.innerHTML; btn.innerHTML='찾는 중…'; btn.disabled=true;
+  navigator.geolocation.getCurrentPosition(pos=>{
+    btn.innerHTML=old; btn.disabled=false;
+    const {latitude:lat, longitude:lng}=pos.coords;
+    let best=STATIONS[0], bd=Infinity;
+    STATIONS.forEach(s=>{ const d=(s.lat-lat)**2+(s.lng-lng)**2; if(d<bd){bd=d; best=s;} });
+    selectStation(best.id,false);
+    const inJeju=lat>=33.0&&lat<=33.7&&lng>=126.0&&lng<=127.0;
+    showUser(lat,lng,inJeju);
+  }, err=>{
+    btn.innerHTML=old; btn.disabled=false;
+    alert('위치를 가져올 수 없어요. 브라우저 위치 권한을 확인해 주세요.');
+  }, {enableHighAccuracy:true, timeout:8000, maximumAge:0});
+}
+
+/* ---------- 초기화 ---------- */
+function init(){
+  $('todayLbl').textContent=fmtDate(new Date());
+  const sel=$('stationSel');
+  sel.innerHTML=STATIONS.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  sel.value=stationId;
+  sel.addEventListener('change',()=>selectStation(sel.value,false));
+  $('datePrev').addEventListener('click',()=>{ curDate.setDate(curDate.getDate()-1); renderTide(); });
+  $('dateNext').addEventListener('click',()=>{ curDate.setDate(curDate.getDate()+1); renderTide(); });
+  $('dateLbl').addEventListener('click',()=>{ curDate=new Date(); renderTide(); });
+  $('locBtn').addEventListener('click',locateMe);
+
+  /* 수영 스팟 목록 */
+  $('spotList').innerHTML=SPOTS.map(sp=>
+    `<div class="spot" data-id="${sp.id}" title="${sp.note}"><span class="sdot" style="background:${spotColor(sp)}"></span>${sp.name}<span class="stp">${sp.type}</span></div>`).join('');
+  $('spotList').addEventListener('click',e=>{ const t=e.target.closest('.spot'); if(t) selectSpot(t.dataset.id); });
+
+  /* 안전 수칙 경고창: 첫 방문 시 자동 표시 + 버튼으로 재열람 */
+  const openSafety=()=>$('safetyModal').classList.remove('hidden');
+  const closeSafety=()=>{ $('safetyModal').classList.add('hidden'); try{localStorage.setItem('badang_safety_ack','1');}catch(_){} };
+  $('safetyBtn').addEventListener('click',openSafety);
+  $('safetyOk').addEventListener('click',closeSafety);
+  $('safetyModal').addEventListener('click',e=>{ if(e.target===$('safetyModal')) closeSafety(); });
+  let ack=false; try{ack=!!localStorage.getItem('badang_safety_ack');}catch(_){}
+  if(!ack) openSafety();
+
+  /* 그래프 스크럽: 좌우로 끌어 시간별 수심 확인 */
+  const chartEl=$('tideChart');
+  const scrub=e=>{ if(CHART.levelAt) drawScrub(xToHour(e.clientX)); };
+  chartEl.addEventListener('pointerdown',e=>{ CHART.drag=true; try{chartEl.setPointerCapture(e.pointerId);}catch(_){} scrub(e); });
+  chartEl.addEventListener('pointermove',e=>{ if(CHART.drag) scrub(e); });
+  window.addEventListener('pointerup',()=>{ CHART.drag=false; });
+  window.addEventListener('pointercancel',()=>{ CHART.drag=false; });
+  chartEl.addEventListener('dblclick',()=>{ if(CHART.isToday) drawScrub(CHART.curH); });
+  renderTide();
+  renderActs();
+  fetchWeather();
+  fetchMarine();
+  startMap();
+}
+init();
+</script>
+</body>
+</html>
